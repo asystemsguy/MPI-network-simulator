@@ -1,1 +1,0 @@
-#define NRDP 0

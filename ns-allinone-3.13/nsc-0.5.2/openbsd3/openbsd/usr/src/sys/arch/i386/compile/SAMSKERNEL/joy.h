@@ -1,1 +1,0 @@
-#define	NJOY	1

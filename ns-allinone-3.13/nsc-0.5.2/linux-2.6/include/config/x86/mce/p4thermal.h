@@ -1,1 +1,0 @@
-#define CONFIG_X86_MCE_P4THERMAL 1

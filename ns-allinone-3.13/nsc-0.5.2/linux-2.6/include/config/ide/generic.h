@@ -1,1 +1,0 @@
-#define CONFIG_IDE_GENERIC 1

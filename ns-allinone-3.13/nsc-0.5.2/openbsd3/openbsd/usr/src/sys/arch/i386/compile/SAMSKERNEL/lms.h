@@ -1,1 +1,0 @@
-#define	NLMS	1

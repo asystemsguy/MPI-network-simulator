@@ -1,1 +1,0 @@
-#define	NMTRR	1

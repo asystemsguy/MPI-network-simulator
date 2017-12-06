@@ -1,1 +1,0 @@
-#define CONFIG_SCSI_DPT_I2O_MODULE 1

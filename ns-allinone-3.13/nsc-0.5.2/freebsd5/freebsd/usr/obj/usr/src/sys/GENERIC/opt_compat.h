@@ -1,2 +1,0 @@
-#define COMPAT_43 1
-#define COMPAT_FREEBSD4 1

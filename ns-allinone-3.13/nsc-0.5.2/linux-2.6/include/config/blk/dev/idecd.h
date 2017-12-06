@@ -1,1 +1,0 @@
-#define CONFIG_BLK_DEV_IDECD 1

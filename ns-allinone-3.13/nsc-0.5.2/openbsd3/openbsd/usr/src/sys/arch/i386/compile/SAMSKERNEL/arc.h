@@ -1,1 +1,0 @@
-#define	NARC	0

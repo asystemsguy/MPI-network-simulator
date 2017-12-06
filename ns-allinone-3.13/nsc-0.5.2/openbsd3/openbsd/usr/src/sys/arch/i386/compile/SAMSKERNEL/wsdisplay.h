@@ -1,2 +1,0 @@
-#define	NWSDISPLAY	1
-#define	NWSEMUL_SUN	0

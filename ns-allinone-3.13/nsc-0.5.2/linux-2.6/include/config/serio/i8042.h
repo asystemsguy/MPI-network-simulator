@@ -1,1 +1,0 @@
-#define CONFIG_SERIO_I8042 1

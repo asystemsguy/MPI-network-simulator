@@ -1,1 +1,0 @@
-#undef CONFIG_SCSI_3W_9XXX

@@ -1,1 +1,0 @@
-#define	NUSCANNER	1

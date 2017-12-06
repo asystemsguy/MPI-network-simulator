@@ -1,1 +1,0 @@
-#define	NATM	0

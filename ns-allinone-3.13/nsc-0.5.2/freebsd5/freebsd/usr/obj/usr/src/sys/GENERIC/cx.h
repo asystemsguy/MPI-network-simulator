@@ -1,1 +1,0 @@
-#define NCX 0

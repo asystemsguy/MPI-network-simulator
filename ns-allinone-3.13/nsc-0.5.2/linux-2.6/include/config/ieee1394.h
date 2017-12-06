@@ -1,1 +1,0 @@
-#define CONFIG_IEEE1394 1

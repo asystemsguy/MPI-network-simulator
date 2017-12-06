@@ -1,1 +1,0 @@
-#define CONFIG_ACPI_AC 1

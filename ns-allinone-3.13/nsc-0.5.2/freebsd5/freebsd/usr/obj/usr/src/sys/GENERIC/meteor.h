@@ -1,1 +1,0 @@
-#define NMETEOR 0
