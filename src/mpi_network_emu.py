@@ -1,4 +1,6 @@
 import subprocess
+import time
+import os
 import sys
 import psutil
 import iptc
@@ -13,17 +15,24 @@ from pyroute2.netlink.rtnl import RTM_NEWTFILTER
 from pyroute2.netlink.rtnl import RTM_DELTFILTER
 from pyroute2.netlink import NetlinkError
 from subprocess import check_output
+from subprocess import call
 
 ETH_P_IP = 0x0800
 PRIO = 1
 HANDLE_MIN = 2
 HANDLE_MAX = (2 ** 16) - 1
 
+def wait_for_process(name):
+     while call(["pidof", name]):
+           pass
+
 def get_pid(name):
+    wait_for_process(name)
     return map(int,check_output(["pidof",name]).split())
 
 def tag_packets_with_port(port):
-    chain = iptc.Chain(iptc.Table(iptc.Table.MANGLE), "OUTPUT")
+    table_mangle = iptc.Table(iptc.Table.MANGLE)
+    chain = iptc.Chain(table_mangle, "OUTPUT")
     rule = iptc.Rule()
     rule.protocol = "tcp"
     match = iptc.Match(rule, "tcp")
@@ -35,7 +44,9 @@ def tag_packets_with_port(port):
     rule.target = target
     chain.insert_rule(rule)
 
-def tag_packets(process_name):
+def tag_packets(process_name):    
+    table_mangle = iptc.Table(iptc.Table.MANGLE)
+    table_mangle.flush()
     mpi_pids =  get_pid(process_name)
     for pid in mpi_pids :	
        	p = psutil.Process(pid)
@@ -45,26 +56,42 @@ def tag_packets(process_name):
 
 def stop_emu():
      ipr = IPRoute() 
-     LINK_ID = ipr.link_lookup(ifname="eth1")[0]
+     LINK_ID = ipr.link_lookup(ifname="eth1")
+     
+     try:
+            ipr.tc("delete", "htb", LINK_ID, 0x10000, default=0x200000)
+
+     except NetlinkError as e:
+            print "for link "+str(LINK_ID)+" netlinkerr can't create new htb"+str(e)
+     except Exception as e:
+           print "for link "+str(LINK_ID)+"can't create new htb"+str(e)     
+
      try:
             ipr.tc(
                 RTM_DELTFILTER, 'fw', LINK_ID, 0x01,
                 parent = 0x10000, protocol=ETH_P_IP, prio=PRIO
             )
      except NetlinkError as e:
-            print "can't delete the filter"+str(e)
+            print "for link "+str(LINK_ID)+"netlinkerr can't delete the filter"+str(e)
      except Exception as e:
             exc_info = sys.exc_info()
-            print "can't delete the filter"+str(exc_info)
+            print "for link "+str(LINK_ID)+"can't delete the filter"+str(exc_info)
      
      try:
            ipr.tc(RTM_DELTCLASS, 'htb', LINK_ID, 0x10000 + 0x01)
      except NetlinkError as e:
-            print "can't delete the class"+str(e)
+            print "for link "+str(LINK_ID)+"netlinkerr can't delete the class"+str(e)
      except Exception as e:
             exc_info = sys.exc_info()
-            print "cant' delete the class"+str(exc_info)
+            print "for link "+str(LINK_ID)+"cant' delete the class"+str(exc_info)
+     try:
+         ipr.tc("delete", "htb", str(LINK_ID), 0x10000, default=0x200000)
 
+     except NetlinkError as e:
+            print "for link "+str(LINK_ID)+" netlinkerr can't delete new htb"+str(e)
+     except Exception as e:
+           print "for link "+str(LINK_ID)+"can't delete new htb"+str(e)
+           
 def netem(  p_rate,
             p_loss_ratio=0,
             p_loss_corr=0,
@@ -82,22 +109,31 @@ def netem(  p_rate,
             p_burst_size =0,
           ):
     ipr = IPRoute()
-    LINK_ID = ipr.link_lookup(ifname="eth1")[0]
+    LINK_ID = 0
+    eth1 = ipr.link_lookup(ifname="eth1")[0]
+        
+    try:
+    	ipr.tc("add", "htb", eth1, 0x10000, default=0x200000)
+    
+    except NetlinkError as e:
+            print "for link "+str(LINK_ID)+" netlinkerr can't create new htb"+str(e)
+    except Exception as e:
+           print "for link "+str(LINK_ID)+"can't create new htb"+str(e)
     
     try:
             ipr.tc(
-                RTM_NEWTCLASS, 'htb', LINK_ID, 0x10001,
+                RTM_NEWTCLASS, 'htb', eth1, 0x10001,
                 parent = 0x10000,
                 rate="{}kbit".format(p_rate or (2**22 - 1)),
             )
     except NetlinkError as e:
-            print "can't create new class"+str(e)
+            print "for link "+str(LINK_ID)+" netlinkerr can't create new class"+str(e)
     except Exception as e:
-           print "can't create new class"+str(e)
-    
+           print "for link "+str(LINK_ID)+"can't create new class"+str(e)
+       
     try:
             ipr.tc(
-                RTM_NEWQDISC, 'netem',LINK_ID, 0,
+                RTM_NEWQDISC, 'netem',eth1, 0,
                 parent= 0x10001,
                 loss=p_loss_ratio*100,
                 delay=p_delay*1000,
@@ -111,10 +147,10 @@ def netem(  p_rate,
                 corr_corrupt=p_corr_corr,
               )
     except NetlinkError as e:
-            print "can't create new queue des"+str(e)
+            print "for link "+str(LINK_ID)+"netlinkerr can't create new queue des em"+str(e)
     except Exception as e:
             exc_info = sys.exc_info()
-            print "can't create new queue des"+str(exc_info)
+            print "for link "+str(LINK_ID)+"can't create new queue des em"+str(exc_info)
     try:
             extra_args = {}
             if not p_dont_drop_packets:
@@ -123,7 +159,7 @@ def netem(  p_rate,
                     'burst': p_burst_size,
                     'action': 'drop',
                 })
-            ipr.tc(RTM_NEWTFILTER, 'fw', LINK_ID,0x01,
+            ipr.tc(RTM_NEWTFILTER, 'fw', eth1,0x01,
                         parent = 0x10000,
                         protocol=ETH_P_IP,
                         prio=PRIO,
@@ -131,10 +167,10 @@ def netem(  p_rate,
                         **extra_args
                         )
     except NetlinkError as e:
-            print "can't create a new filter"+str(e)
+            print "for link "+str(LINK_ID)+"netlinkerr can't create a new filter"+str(e)
     except Exception as e:
             exc_info = sys.exc_info()
-            print "can't create a new filter"+str(exc_info)
+            print "for link "+str(LINK_ID)+"can't create a new filter"+str(exc_info)
       
 def read_conf_set_network_emu(conf_file_name):
     stop_emu()
@@ -173,7 +209,7 @@ def read_conf_set_network_emu(conf_file_name):
           )
 
 
-tag_packets("mpi")
+tag_packets("mpi_test")
 read_conf_set_network_emu("net_emu_mpi.json")
 
 
