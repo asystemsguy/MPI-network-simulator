@@ -20,15 +20,7 @@ properties of MPI network like delay, jitter and rate.
  2. python
 
 ## How it works
-At the core of the framework, we have a MPI network emulation daemon which
-when started waits for MPI jobs to run.
-1 In order to shape traffic, MPIEM leverages Linux’s builtin Traffic Control
-subsystem. Communication with the Traffic Control subsystem is done over the
-netlink API and facilitated by pyroute2, a pure python netlink library.
-MPIEM will mark all the packets that are coming from MPI jobs. Based
-on that mark, a classifier will put the packets in the right ”buckets”, which
-then will throttle the bandwidth, add latency, drop packets, corrupt them...
-depending on the shaping settings given by user in a JSON file.
+At the core of the framework, we have an MPI network emulation daemon which when started waits for MPI jobs to run. 1 In order to shape traffic, MPI network emulation leverages Linux’s built-in Traffic Control Subsystem. Communication with the Traffic Control subsystem is done over the Netlink API and facilitated by pyroute2, a pure python Netlink library. MPI network emulation will mark all the packets that are coming from MPI jobs. Based on that mark, a classifier will put the packets in the right ”buckets”, which then will throttle the bandwidth, add latency, drop packets, corrupt them... depending on the shaping settings given by a user in a JSON file.
 
 ## Marking packets
 Daemon waits until MPI jobs are up and Packets are marked by using iptable’s
